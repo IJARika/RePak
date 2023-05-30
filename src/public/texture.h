@@ -1,7 +1,7 @@
 #pragma once
 
-#define MAX_PERM_MIP_SIZE	0x10000 // "Any MIP below 64kiB is permanent."
-#define MAX_STREAM_MIP_SIZE	0x100000
+#define MAX_PERM_MIP_SIZE	0xFFFF // "Any MIP below 64kiB is permanent."
+#define MAX_STREAM_MIP_SIZE	0xFFFFF
 
 static const std::pair<uint8_t, uint8_t> s_pBytesPerPixel[] =
 {
