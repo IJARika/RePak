@@ -3,292 +3,354 @@
 #include "public/studio.h"
 #include "public/material.h"
 
-void Assets::AddModelAsset_stub(CPakFile* pak, std::vector<RPakAssetEntry>* assetEntries, const char* assetPath, rapidjson::Value& mapEntry)
+char* Model_ReadRMDLFile(const std::string& path, const uint64_t alignment = 64)
 {
-    Error("RPak version 7 (Titanfall 2) cannot contain models");
+    BinaryIO modelFile;
+
+    if (!modelFile.Open(path, BinaryIO::Mode_e::Read))
+        Error("Failed to open model file \"%s\".\n", path.c_str());
+
+    const size_t fileSize = modelFile.GetSize();
+
+    if (fileSize < sizeof(studiohdr_t))
+        Error("Invalid model file \"%s\"; must be at least %zu bytes, found %zu.\n", path.c_str(), sizeof(studiohdr_t), fileSize);
+
+    char* const buf = new char[IALIGN(fileSize, alignment)];
+    modelFile.Read(buf, fileSize);
+
+    studiohdr_t* const pHdr = reinterpret_cast<studiohdr_t*>(buf);
+
+    if (pHdr->id != 'TSDI') // "IDST"
+        Error("Invalid model file \"%s\"; expected magic %x, found %x.\n", path.c_str(), 'TSDI', pHdr->id);
+
+    if (pHdr->version != 54)
+        Error("Invalid model file \"%s\"; expected version %i, found %i.\n", path.c_str(), 54, pHdr->version);
+
+    if (pHdr->length > fileSize)
+        Error("Invalid model file \"%s\"; studiohdr->length(%zu) > fileSize(%zu).\n", path.c_str(), (size_t)pHdr->length, fileSize);
+
+    return buf;
 }
 
-void Assets::AddModelAsset_v9(CPakFile* pak, std::vector<RPakAssetEntry>* assetEntries, const char* assetPath, rapidjson::Value& mapEntry)
+static char* Model_ReadVGFile(const std::string& path, int64_t* const pFileSize, size_t* const pFileSizePageAligned)
 {
-    Debug("Adding mdl_ asset '%s'\n", assetPath);
+    BinaryIO vgFile;
 
-    std::string sAssetName = assetPath;
+    if (!vgFile.Open(path, BinaryIO::Mode_e::Read))
+        Error("Failed to open vertex group file \"%s\".\n", path.c_str());
 
-    ModelHeader* pHdr = new ModelHeader();
+    const int64_t fileSize = vgFile.GetSize();
 
-    std::string rmdlFilePath = pak->GetAssetPath() + sAssetName;
+    if (fileSize < sizeof(VertexGroupHeader_t))
+        Error("Invalid vertex group file \"%s\"; must be at least %zu bytes, found %zu.\n", path.c_str(), sizeof(VertexGroupHeader_t), fileSize);
 
-    // VG is a "fake" file extension that's used to store model streaming data (name came from the magic '0tVG')
-    // this data is a combined mutated version of the data from .vtx and .vvd in regular source models
-    std::string vgFilePath = Utils::ChangeExtension(rmdlFilePath, "vg");
+    // note(amos): need to align it to STARPAK_DATABLOCK_ALIGNMENT since the
+    // actual VG is also aligned to this value in the starpak, and the table at
+    // the end of the starpak (see struct PakStreamSetAssetEntry_s in starpak.h
+    // ), that we use for data deduplication, stores the asset's size aligned
+    // so in order to yield the same hash we need to hash the data page aligned.
+    const size_t fileSizePageAligned = IALIGN(fileSize, STARPAK_DATABLOCK_ALIGNMENT);
 
-    // fairly modified version of source .phy file data
-    std::string phyFilePath = Utils::ChangeExtension(rmdlFilePath, "phy"); // optional (not used by all models)
+    char* const buf = new char[fileSizePageAligned];
+    vgFile.Read(buf, fileSize);
 
-    // add required files
-    REQUIRE_FILE(rmdlFilePath);
-    REQUIRE_FILE(vgFilePath);
+    const size_t remainder = fileSizePageAligned - fileSize;
 
-    // begin rmdl input
-    BinaryIO rmdlInput;
-    rmdlInput.open(rmdlFilePath, BinaryIOMode::Read);
+    // Null the rest since this will affect the hash result.
+    if (remainder > 0)
+        memset(&buf[fileSize], 0, remainder);
 
-    studiohdr_t mdlhdr = rmdlInput.read<studiohdr_t>();
+    VertexGroupHeader_t* const pHdr = reinterpret_cast<VertexGroupHeader_t*>(buf);
 
-    if (mdlhdr.id != 0x54534449) // "IDST"
-        Error("invalid file magic for model asset '%s'. expected %x, found %x\n", sAssetName.c_str(), 0x54534449, mdlhdr.id);
+    if (pHdr->id != 'GVt0') // "0tVG"
+        Error("Invalid vertex group file \"%s\"; expected magic %x, found %x.\n", path.c_str(), 'GVt0', pHdr->id);
 
-    if (mdlhdr.version != 54)
-        Error("invalid version for model asset '%s'. expected %i, found %i\n", sAssetName.c_str(), 54, mdlhdr.version);
+    // not sure if this is actually version but i've also never seen it != 1
+    if (pHdr->version != 1)
+        Error("Invalid vertex group file \"%s\"; expected version %i, found %i.\n", path.c_str(), 1, pHdr->version);
+
+    *pFileSize = fileSize;
+    *pFileSizePageAligned = fileSizePageAligned;
+
+    return buf;
+}
+
+static PakGuid_t* Model_AddAnimRigRefs(uint32_t* const animrigCount, const rapidjson::Value& mapEntry)
+{
+    rapidjson::Value::ConstMemberIterator it;
+
+    if (!JSON_GetIterator(mapEntry, "$animrigs", JSONFieldType_e::kArray, it))
+        return nullptr;
+
+    const rapidjson::Value::ConstArray animrigs = it->value.GetArray();
+
+    if (animrigs.Empty())
+        return nullptr;
+
+    const size_t numAnimrigs = animrigs.Size();
+    PakGuid_t* const guidBuf = new PakGuid_t[numAnimrigs];
+
+    int i = -1;
+    for (const auto& animrig : animrigs)
+    {
+        i++;
+        const PakGuid_t guid = Pak_ParseGuid(animrig);
+
+        if (!guid)
+            Error("Unable to parse animrig #%i.\n", i);
+
+        guidBuf[i] = guid;
+    }
+
+    (*animrigCount) = static_cast<uint32_t>(animrigs.Size());
+    return guidBuf;
+}
+
+static void Model_AllocateIntermediateDataChunk(CPakFileBuilder* const pak, PakPageLump_s& hdrChunk, ModelAssetHeader_t* const pHdr,
+    PakGuid_t* const animrigRefs, const uint32_t animrigCount, PakGuid_t* const sequenceRefs, const uint32_t sequenceCount, 
+    const char* const assetPath, PakAsset_t& asset)
+{
+    // the model name is aligned to 1 byte, but the guid ref block is aligned
+    // to 8, we have to pad the name buffer to align the guid ref block. if
+    // we have no guid ref blocks, the entire lump will be aligned to 1 byte.
+    const size_t modelNameBufLen = strlen(assetPath) + 1;
+    const size_t alignedNameBufLen = IALIGN8(modelNameBufLen);
+
+    const size_t animRigRefsBufLen = animrigCount * sizeof(PakGuid_t);
+    const size_t sequenceRefsBufLen = sequenceCount * sizeof(PakGuid_t);
+
+    const bool hasGuidRefs = animrigRefs || sequenceRefs;
+
+    PakPageLump_s intermediateChunk = pak->CreatePageLump(alignedNameBufLen + animRigRefsBufLen + sequenceRefsBufLen, SF_CPU, hasGuidRefs ? 8 : 1);
+    memcpy(intermediateChunk.data, assetPath, modelNameBufLen); // Write the null-terminated asset path to the chunk buffer.
+
+    pak->AddPointer(hdrChunk, offsetof(ModelAssetHeader_t, pName), intermediateChunk, 0);
+
+    if (hasGuidRefs)
+    {
+        asset.ExpandGuidBuf(animrigCount + sequenceCount);
+
+        if (animrigRefs)
+        {
+            const size_t base = alignedNameBufLen;
+
+            memcpy(&intermediateChunk.data[base], animrigRefs, animRigRefsBufLen);
+            delete[] animrigRefs;
+
+            pHdr->animRigCount = animrigCount;
+            pak->AddPointer(hdrChunk, offsetof(ModelAssetHeader_t, pAnimRigs), intermediateChunk, base);
+
+            for (uint32_t i = 0; i < animrigCount; ++i)
+            {
+                const size_t offset = base + (i * sizeof(PakGuid_t));
+                const PakGuid_t guid = *reinterpret_cast<PakGuid_t*>(&intermediateChunk.data[offset]);
+
+                Pak_RegisterGuidRefAtOffset(guid, offset, intermediateChunk, asset);
+            }
+        }
+
+        if (sequenceRefs)
+        {
+            const size_t base = alignedNameBufLen + animRigRefsBufLen;
+
+            memcpy(&intermediateChunk.data[base], sequenceRefs, sequenceRefsBufLen);
+            delete[] sequenceRefs;
+
+            pHdr->sequenceCount = sequenceCount;
+            pak->AddPointer(hdrChunk, offsetof(ModelAssetHeader_t, pSequences), intermediateChunk, base);
+
+            for (uint32_t i = 0; i < sequenceCount; ++i)
+            {
+                const size_t offset = base + (i * sizeof(PakGuid_t));
+                const PakGuid_t guid = *reinterpret_cast<PakGuid_t*>(&intermediateChunk.data[offset]);
+
+                Pak_RegisterGuidRefAtOffset(guid, offset, intermediateChunk, asset);
+            }
+        }
+    }
+}
+
+static void Model_InternalAddVertexGroupData(CPakFileBuilder* const pak, PakPageLump_s* const hdrChunk, ModelAssetHeader_t* const modelHdr, studiohdr_t* const studiohdr, const std::string& rmdlFilePath, PakStreamSetEntry_s& de)
+{
+    modelHdr->totalVertexDataSize = studiohdr->vtxsize + studiohdr->vvdsize + studiohdr->vvcsize + studiohdr->vvwsize;
 
     ///--------------------
     // Add VG data
-    BinaryIO vgInput;
-    vgInput.open(vgFilePath, BinaryIOMode::Read);
+    // VG is a "fake" file extension that's used to store model streaming data (name came from the magic '0tVG')
+    // this data is a combined mutated version of the data from .vtx and .vvd in regular source models
+    const std::string vgFilePath = Utils::ChangeExtension(rmdlFilePath, ".vg");
 
-    BasicRMDLVGHeader bvgh = vgInput.read<BasicRMDLVGHeader>();
+    int64_t vgFileSize = 0; size_t vgSizeAligned = 0;
+    char* const vgBuf = Model_ReadVGFile(vgFilePath, &vgFileSize, &vgSizeAligned);
 
-    if (bvgh.magic != 0x47567430)
-        Error("invalid vg file magic for model asset '%s'. expected %x, found %x\n", sAssetName.c_str(), 0x47567430, bvgh.magic);
+    de = pak->AddStreamingDataEntry(vgSizeAligned, (uint8_t*)vgBuf, STREAMING_SET_MANDATORY);
 
-    if (bvgh.version != 1)
-        Error("invalid vg version for model asset '%s'. expected %i, found %i\n", sAssetName.c_str(), 1, bvgh.version);
+    assert(vgSizeAligned <= UINT32_MAX);
+    modelHdr->streamedVertexDataSize = static_cast<uint32_t>(vgSizeAligned);
 
-    vgInput.seek(0, std::ios::end);
+    // static props must have their vertex group data copied as permanent data in the pak file.
+    if (studiohdr->IsStaticProp())
+    {
+        PakPageLump_s vgLump = pak->CreatePageLump(vgFileSize, SF_CPU | SF_TEMP | SF_CLIENT, 1, vgBuf);
+        pak->AddPointer(*hdrChunk, offsetof(ModelAssetHeader_t, pStaticPropVtxCache), vgLump, 0);
+    }
+    else
+        delete[] vgBuf;
+}
 
-    uint32_t vgFileSize = vgInput.tell();
-    char* pVGBuf = new char[vgFileSize];
+static void Model_InternalHandleMaterials(CPakFileBuilder* const pak, const rapidjson::Value& mapEntry, 
+    PakAsset_t& asset, studiohdr_t* const studiohdr, PakPageLump_s& dataChunk)
+{
+    // Material Overrides Handling
+    rapidjson::Value::ConstMemberIterator materialsIt;
 
-    vgInput.seek(0);
-    vgInput.getReader()->read(pVGBuf, vgFileSize);
-    vgInput.close();
+    // todo(amos): do we even want material overrides? shouldn't these need to
+    // be fixed in the studiomdl itself? there are reports of this causing many
+    // errors as the game tries to read the path from the mdl itself which this
+    // loop below doesn't update.
+    const bool hasMaterialOverrides = JSON_GetIterator(mapEntry, "$materials", JSONFieldType_e::kArray, materialsIt);
+    const rapidjson::Value* materialOverrides = hasMaterialOverrides ? &materialsIt->value : nullptr;
+
+    // handle material overrides register all material guids
+    for (int i = 0; i < studiohdr->numtextures; ++i)
+    {
+        mstudiotexture_t* const tex = studiohdr->pTexture(i);
+
+        if (hasMaterialOverrides)
+        {
+            rapidjson::Value::ConstArray materialArray = materialOverrides->GetArray();
+
+            if (materialArray.Size() > i)
+            {
+                const PakGuid_t guid = Pak_ParseGuid(materialArray[i]);
+
+                if (!guid)
+                    Error("Unable to parse material #%i.\n", i);
+
+                tex->guid = guid;
+            }
+        }
+
+        const size_t pos = (char*)tex - dataChunk.data;
+        const size_t offset = pos + offsetof(mstudiotexture_t, guid);
+
+        Pak_RegisterGuidRefAtOffset(tex->guid, offset, dataChunk, asset);
+        const PakAsset_t* const internalAsset = pak->GetAssetByGuid(tex->guid);
+
+        if (internalAsset)
+        {
+            // make sure referenced asset is a material for sanity
+            internalAsset->EnsureType(TYPE_MATL);
+            MaterialShaderType_e expectedMaterialType;
+
+            // note(amos): `studiohdr->materialtypesindex` can be 0, in this case
+            // the engine sets the material shader type for the given model to
+            // `SKNC` if the model has more than 1 bone, else it sets it to `RGDC`.
+            // See code at [r5apex.exe + 0x45600A] (r5reloaded) for more information.
+            if (studiohdr->materialtypesindex > 0)
+                expectedMaterialType = studiohdr->materialType(i);
+            else
+            {
+                expectedMaterialType = (studiohdr->numbones > 1)
+                    ? expectedMaterialType = MaterialShaderType_e::SKNC
+                    : expectedMaterialType = MaterialShaderType_e::RGDC;
+            }
+
+            // model assets don't exist on r2 so we can be sure that this is a v8 pak (and therefore has v15 materials).
+            const MaterialAssetHeader_v15_t* const matlHdr = reinterpret_cast<const MaterialAssetHeader_v15_t*>(internalAsset->header);
+            const MaterialShaderType_e foundMaterialType = matlHdr->materialType;
+
+            if (foundMaterialType != expectedMaterialType)
+            {
+                Error("Unexpected shader type for material in slot #%i, expected '%s', found '%s'.\n",
+                    i, s_materialShaderTypeNames[expectedMaterialType], s_materialShaderTypeNames[foundMaterialType]);
+            }
+        }
+    }
+}
+
+extern PakGuid_t* AnimSeq_AutoAddSequenceRefs(CPakFileBuilder* const pak, uint32_t* const sequenceCount, const rapidjson::Value& mapEntry);
+
+// page chunk structure and order:
+// - header        HEAD        (align=8)
+// - intermediate  CPU         (align=1?8) name, animrig refs then animseqs refs. aligned to 1 if we don't have any refs.
+// - vphysics      TEMP        (align=1)
+// - vertex groups TEMP_CLIENT (align=1)
+// - rmdl          CPU         (align=64) 64 bit aligned because collision data is loaded with aligned SIMD instructions.
+void Assets::AddModelAsset_v9(CPakFileBuilder* const pak, const PakGuid_t assetGuid, const char* const assetPath, const rapidjson::Value& mapEntry)
+{
+    // deal with dependencies first; auto-add all animation sequences.
+    uint32_t sequenceCount = 0;
+    PakGuid_t* const sequenceRefs = AnimSeq_AutoAddSequenceRefs(pak, &sequenceCount, mapEntry);
+
+    // this function only creates the arig guid refs, it does not auto-add.
+    uint32_t animrigCount = 0;
+    PakGuid_t* const animrigRefs = Model_AddAnimRigRefs(&animrigCount, mapEntry);
+
+    // from here we start with creating lumps for the target model asset.
+    PakAsset_t& asset = pak->BeginAsset(assetGuid, assetPath);
+
+    PakPageLump_s hdrChunk = pak->CreatePageLump(sizeof(ModelAssetHeader_t), SF_HEAD, 8);
+    ModelAssetHeader_t* const pHdr = reinterpret_cast<ModelAssetHeader_t*>(hdrChunk.data);
+
+    //
+    // Name, Anim Rigs and Animseqs, these all share 1 data chunk.
+    //
+    Model_AllocateIntermediateDataChunk(pak, hdrChunk, pHdr, animrigRefs, animrigCount, sequenceRefs, sequenceCount, assetPath, asset);
+
+    const std::string rmdlFilePath = pak->GetAssetPath() + assetPath;
+
+    char* const rmdlBuf = Model_ReadRMDLFile(rmdlFilePath);
+    studiohdr_t* const studiohdr = reinterpret_cast<studiohdr_t*>(rmdlBuf);
 
     //
     // Physics
     //
-    char* phyBuf = nullptr;
-    size_t phyFileSize = 0;
+    const bool physicsRequired = studiohdr->vphysize != 0;
 
-    if (mapEntry.HasMember("usePhysics") && mapEntry["usePhysics"].GetBool())
+    BinaryIO phyInput;
+    const std::string physicsFile = Utils::ChangeExtension(rmdlFilePath, ".phy");
+
+    if (phyInput.Open(physicsFile, BinaryIO::Mode_e::Read))
     {
-        BinaryIO phyInput;
-        phyInput.open(phyFilePath, BinaryIOMode::Read);
+        const size_t phyFileSize = phyInput.GetSize();
 
-        phyInput.seek(0, std::ios::end);
+        // If it exists, but is 0, then the file is truncated/corrupt.
+        // Still report the error even if physicsRequired is false as
+        // this is an indication there's more wrong.
+        if (!phyFileSize)
+            Error("Physics file \"%s\" appears truncated.\n", physicsFile.c_str());
 
-        phyFileSize = phyInput.tell();
+        if (physicsRequired && (studiohdr->vphysize != phyFileSize))
+            Error("Physics file \"%s\" has a size of %zu, but the model expected a size of %zu.\n", physicsFile.c_str(), phyFileSize, (size_t)studiohdr->vphysize);
 
-        phyBuf = new char[phyFileSize];
+        PakPageLump_s phyChunk = pak->CreatePageLump(phyFileSize, SF_CPU | SF_TEMP, 1);
+        phyInput.Read(phyChunk.data, phyFileSize);
 
-        phyInput.seek(0);
-        phyInput.getReader()->read(phyBuf, phyFileSize);
-        phyInput.close();
+        pak->AddPointer(hdrChunk, offsetof(ModelAssetHeader_t, pPhyData), phyChunk, 0);
     }
-
-    //
-    // Anim Rigs
-    //
-    char* pAnimRigBuf = nullptr;
-
-    if (mapEntry.HasMember("animrigs"))
-    {
-        if (!mapEntry["animrigs"].IsArray())
-            Error("found field 'animrigs' on model asset '%s' with invalid type. expected 'array'\n", assetPath);
-
-        pHdr->animRigCount = mapEntry["animrigs"].Size();
-
-        pAnimRigBuf = new char[mapEntry["animrigs"].Size() * sizeof(uint64_t)];
-
-        rmem arigBuf(pAnimRigBuf);
-
-        int i = 0;
-        for (auto& it : mapEntry["animrigs"].GetArray())
-        {
-            if (!it.IsString())
-                Error("invalid animrig entry for model '%s'\n", assetPath);
-
-            if (it.GetStringLength() == 0)
-                Error("anim rig #%i for model '%s' was defined as an invalid empty string\n", i, assetPath);
-
-            uint64_t guid = RTech::StringToGuid(it.GetStdString().c_str());
-
-            arigBuf.write<uint64_t>(guid);
-
-            // check if anim rig is a local asset so that the relation can be added
-            RPakAssetEntry* asset = pak->GetAssetByGuid(guid);
-
-            if (asset)
-                asset->AddRelation(assetEntries->size());
-
-            i++;
-        }
-    }
+    else if (physicsRequired)
+        Error("Failed to open physics file \"%s\".\n", physicsFile.c_str());
 
     //
     // Starpak
     //
-    std::string starpakPath = pak->GetPrimaryStarpakPath();
+    PakStreamSetEntry_s streamedVg;
 
-    if (mapEntry.HasMember("starpakPath") && mapEntry["starpakPath"].IsString())
-        starpakPath = mapEntry["starpakPath"].GetStdString();
+    const bool keepClientOnly = pak->IsFlagSet(PF_KEEP_CLIENT);
 
-    if (starpakPath.length() == 0)
-        Error("attempted to add asset '%s' as a streaming asset, but no starpak files were available.\n-- to fix: add 'starpakPath' as an rpak-wide variable\n-- or: add 'starpakPath' as an asset specific variable\n", assetPath);
+    if (keepClientOnly)
+        Model_InternalAddVertexGroupData(pak, &hdrChunk, pHdr, studiohdr, rmdlFilePath, streamedVg);
 
-    pak->AddStarpakReference(starpakPath);
+    // the last chunk is the actual data chunk that contains the rmdl
+    PakPageLump_s dataChunk = pak->CreatePageLump(studiohdr->length, SF_CPU, 64, rmdlBuf);
+    pak->AddPointer(hdrChunk, offsetof(ModelAssetHeader_t, pData), dataChunk, 0);
 
-    StreamableDataEntry de{ 0, vgFileSize, (uint8_t*)pVGBuf };
-    de = pak->AddStarpakDataEntry(de);
+    if (keepClientOnly)
+        Model_InternalHandleMaterials(pak, mapEntry, asset, studiohdr, dataChunk);
 
-    pHdr->alignedStreamingSize = de.m_nDataSize;
+    asset.InitAsset(hdrChunk.GetPointer(), sizeof(ModelAssetHeader_t), PagePtr_t::NullPtr(), RMDL_VERSION, AssetType::RMDL, streamedVg.streamOffset, streamedVg.streamIndex);
+    asset.SetHeaderPointer(hdrChunk.data);
 
-    size_t extraDataSize = 0;
-
-    if (mdlhdr.flags & 0x10) // STATIC_PROP
-    {
-        extraDataSize = vgFileSize;
-    }
-
-    uint32_t fileNameDataSize = sAssetName.length() + 1;
-
-    char* pDataBuf = new char[fileNameDataSize + mdlhdr.length + extraDataSize];
-
-    // write the model file path into the data buffer
-    snprintf(pDataBuf + mdlhdr.length, fileNameDataSize, "%s", sAssetName.c_str());
-
-    // copy rmdl data into data buffer
-    {
-        // go back to the beginning of the file to read all the data
-        rmdlInput.seek(0);
-
-        // write the skeleton data into the data buffer
-        rmdlInput.getReader()->read(pDataBuf, mdlhdr.length);
-        rmdlInput.close();
-    }
-
-    // copy static prop data into data buffer (if needed)
-    if (mdlhdr.flags & 0x10) // STATIC_PROP
-    {
-        memcpy_s(pDataBuf + fileNameDataSize + mdlhdr.length, vgFileSize, de.m_nDataPtr, vgFileSize);
-    }
-
-    // Segments
-    // asset header
-    _vseginfo_t subhdrinfo = pak->CreateNewSegment(sizeof(ModelHeader), SF_HEAD, 16);
-
-    // data segment
-    _vseginfo_t dataseginfo = pak->CreateNewSegment(mdlhdr.length + fileNameDataSize + extraDataSize, SF_CPU, 64);
-
-    // .phy
-    _vseginfo_t physeginfo;
-    if (phyBuf)
-        physeginfo = pak->CreateNewSegment(phyFileSize, SF_CPU, 64);
-
-    // animation rigs
-    _vseginfo_t arigseginfo;
-    if (pAnimRigBuf)
-        arigseginfo = pak->CreateNewSegment(pHdr->animRigCount * 8, SF_CPU, 64);
-
-    pHdr->pName = { dataseginfo.index, (unsigned)mdlhdr.length };
-
-    pHdr->pRMDL = { dataseginfo.index, 0 };
-
-    pak->AddPointer(subhdrinfo.index, offsetof(ModelHeader, pRMDL));
-    pak->AddPointer(subhdrinfo.index, offsetof(ModelHeader, pName));
-
-    if (mdlhdr.flags & 0x10) // STATIC_PROP
-    {
-        pHdr->pStaticPropVtxCache = { dataseginfo.index, fileNameDataSize + mdlhdr.length };
-        pak->AddPointer(subhdrinfo.index, offsetof(ModelHeader, pStaticPropVtxCache));
-    }
-
-    std::vector<RPakGuidDescriptor> guids{};
-
-    if (phyBuf)
-    {
-        pHdr->pPhyData = { physeginfo.index, 0 };
-        pak->AddPointer(subhdrinfo.index, offsetof(ModelHeader, pPhyData));
-    }
-
-    if (pAnimRigBuf)
-    {
-        pHdr->pAnimRigs = { arigseginfo.index, 0 };
-        pak->AddPointer(subhdrinfo.index, offsetof(ModelHeader, pAnimRigs));
-
-        for (int i = 0; i < pHdr->animRigCount; ++i)
-        {
-            pak->AddGuidDescriptor(&guids, arigseginfo.index, sizeof(uint64_t) * i);
-        }
-    }
-
-    rmem dataBuf(pDataBuf);
-    dataBuf.seek(mdlhdr.textureindex, rseekdir::beg);
-
-    bool hasMaterialOverrides = mapEntry.HasMember("materials");
-
-    // handle material overrides register all material guids
-    for (int i = 0; i < mdlhdr.numtextures; ++i)
-    {
-        dataBuf.seek(mdlhdr.textureindex + (i * sizeof(materialref_t)), rseekdir::beg);
-
-        materialref_t* material = dataBuf.get<materialref_t>();
-
-        // if material overrides are possible and this material has an entry in the array
-        if (hasMaterialOverrides && mapEntry["materials"].GetArray().Size() > i)
-        {
-            auto& matlEntry = mapEntry["materials"].GetArray()[i];
-
-            // if string, calculate the guid
-            if (matlEntry.IsString())
-            {
-                if (matlEntry.GetStringLength() != 0) // if no material path, use the original model material
-                    material->guid = RTech::StringToGuid(std::string("material/" + matlEntry.GetStdString() + ".rpak").c_str()); // use user provided path
-            }
-            // if uint64, treat the value as the guid
-            else if (matlEntry.IsUint64())
-                material->guid = matlEntry.GetUint64();
-        }
-
-        if (material->guid != 0)
-            pak->AddGuidDescriptor(&guids, dataseginfo.index, dataBuf.getPosition() + offsetof(materialref_t, guid));
-
-        RPakAssetEntry* asset = pak->GetAssetByGuid(material->guid);
-
-        if (asset)
-            asset->AddRelation(assetEntries->size());
-    }
-
-    RPakRawDataBlock shdb{ subhdrinfo.index, subhdrinfo.size, (uint8_t*)pHdr };
-    pak->AddRawDataBlock(shdb);
-
-    RPakRawDataBlock rdb{ dataseginfo.index, dataseginfo.size, (uint8_t*)pDataBuf };
-    pak->AddRawDataBlock(rdb);
-
-    uint32_t lastPageIdx = dataseginfo.index;
-
-    if (phyBuf)
-    {
-        RPakRawDataBlock phydb{ physeginfo.index, physeginfo.size, (uint8_t*)phyBuf };
-        pak->AddRawDataBlock(phydb);
-        lastPageIdx = physeginfo.index;
-    }
-
-    if (pAnimRigBuf)
-    {
-        RPakRawDataBlock arigdb{ arigseginfo.index, arigseginfo.size, (uint8_t*)pAnimRigBuf };
-        pak->AddRawDataBlock(arigdb);
-        lastPageIdx = arigseginfo.index;
-    }
-
-    RPakAssetEntry asset;
-
-    asset.InitAsset(RTech::StringToGuid(sAssetName.c_str()), subhdrinfo.index, 0, subhdrinfo.size, -1, 0, de.m_nOffset, -1, (std::uint32_t)AssetType::RMDL);
-    asset.version = RMDL_VERSION;
-    // i have literally no idea what these are
-    asset.pageEnd = lastPageIdx + 1;
-    asset.unk1 = 2;
-
-    asset.AddGuids(&guids);
-
-    assetEntries->push_back(asset);
+    pak->FinishAsset();
 }

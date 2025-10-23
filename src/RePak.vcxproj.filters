@@ -19,18 +19,6 @@
     <Filter Include="thirdparty\rapidcsv">
       <UniqueIdentifier>{bf331444-e1f1-4480-a6e3-a831b4e57439}</UniqueIdentifier>
     </Filter>
-    <Filter Include="thirdparty\rapidjson">
-      <UniqueIdentifier>{f2535fa9-7c9b-477f-bd70-02c78d48667d}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="thirdparty\rapidjson\error">
-      <UniqueIdentifier>{6671524a-da72-4cf7-b53a-1868471b651f}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="thirdparty\rapidjson\internal">
-      <UniqueIdentifier>{cb755283-87ee-4d58-a538-84b3ecde6945}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="thirdparty\rapidjson\msinttypes">
-      <UniqueIdentifier>{993a857e-f330-4472-af3a-54110f5ea1c3}</UniqueIdentifier>
-    </Filter>
     <Filter Include="utils">
       <UniqueIdentifier>{d8cac474-8ee1-4954-bbae-492bc87a5422}</UniqueIdentifier>
     </Filter>
@@ -43,6 +31,33 @@
     <Filter Include="common">
       <UniqueIdentifier>{f614dccd-d01b-46e8-ac53-969a42f24549}</UniqueIdentifier>
     </Filter>
+    <Filter Include="thirdparty\rapidjson">
+      <UniqueIdentifier>{a29ca55a-bc18-432d-b885-477aa6936064}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\rapidjson\error">
+      <UniqueIdentifier>{6c0592c8-8c00-4f29-9efe-2f71dc9f787c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\rapidjson\internal">
+      <UniqueIdentifier>{9edee00a-29ae-422b-9e4e-27d1a619cc4e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\rapidjson\msinttypes">
+      <UniqueIdentifier>{58a81cc1-184c-4333-95fc-09e2f3419e5c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\zstandard">
+      <UniqueIdentifier>{4cc0fcf6-972b-4663-859f-fc8e83f5f005}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\zstandard\common">
+      <UniqueIdentifier>{dfca00ca-5f66-4ae3-a5b2-fd368c26d00a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\zstandard\compress">
+      <UniqueIdentifier>{30a97d38-095d-4d32-b7cd-31a8959ea7e3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\zstandard\decompress">
+      <UniqueIdentifier>{5c891791-7b2e-4559-acee-7fb997d023a5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="thirdparty\zstandard\dictbuilder">
+      <UniqueIdentifier>{c5204ec0-a4b2-4ba2-9fbd-f755609bb616}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="application\repak.cpp">
@@ -54,13 +69,10 @@
     <ClCompile Include="assets\patch.cpp">
       <Filter>assets</Filter>
     </ClCompile>
-    <ClCompile Include="assets\rui.cpp">
-      <Filter>assets</Filter>
-    </ClCompile>
     <ClCompile Include="assets\texture.cpp">
       <Filter>assets</Filter>
     </ClCompile>
-    <ClCompile Include="assets\animation.cpp">
+    <ClCompile Include="assets\animseq.cpp">
       <Filter>assets</Filter>
     </ClCompile>
     <ClCompile Include="assets\datatable.cpp">
@@ -84,11 +96,162 @@
     <ClCompile Include="logic\pakfile.cpp">
       <Filter>logic</Filter>
     </ClCompile>
+    <ClCompile Include="utils\dxutils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\animrig.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\shaderset.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\shader.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\strutils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\jsonutils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\debug.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\entropy_common.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\error_private.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\fse_decompress.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\pool.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\threading.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\xxhash.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\common\zstd_common.c">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_fast.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_lazy.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_ldm.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_opt.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstdmt_compress.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\fse_compress.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\hist.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\huf_compress.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_compress.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_compress_literals.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_compress_sequences.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_compress_superblock.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_double_fast.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\decompress\zstd_ddict.c">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\decompress\zstd_decompress.c">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\decompress\zstd_decompress_block.c">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\decompress\huf_decompress.c">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\dictBuilder\fastcover.c">
+      <Filter>thirdparty\zstandard\dictbuilder</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\dictBuilder\zdict.c">
+      <Filter>thirdparty\zstandard\dictbuilder</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\dictBuilder\cover.c">
+      <Filter>thirdparty\zstandard\dictbuilder</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\dictBuilder\divsufsort.c">
+      <Filter>thirdparty\zstandard\dictbuilder</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\binaryio.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\MurmurHash3.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="logic\pakpage.cpp">
+      <Filter>logic</Filter>
+    </ClCompile>
+    <ClCompile Include="logic\streamcache.cpp">
+      <Filter>logic</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\texture_anim.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="logic\streamfile.cpp">
+      <Filter>logic</Filter>
+    </ClCompile>
+    <ClCompile Include="logic\buildsettings.cpp">
+      <Filter>logic</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\settings.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\settings_layout.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="thirdparty\zstd\compress\zstd_preSplit.c">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\anim_recording.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="utils\zstdutils.cpp">
+      <Filter>utils</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\material_for_aspect.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\texture_list.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="application\console.cpp" />
+    <ClCompile Include="assets\ui_image_atlas.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
+    <ClCompile Include="assets\lcd_screen_effect.cpp">
+      <Filter>assets</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="application\repak.h">
-      <Filter>application</Filter>
-    </ClInclude>
     <ClInclude Include="assets\assets.h">
       <Filter>assets</Filter>
     </ClInclude>
@@ -101,56 +264,65 @@
     <ClInclude Include="thirdparty\rapidcsv\rapidcsv.h">
       <Filter>thirdparty\rapidcsv</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\error\en.h">
-      <Filter>thirdparty\rapidjson\error</Filter>
+    <ClInclude Include="utils\dxutils.h">
+      <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\error\error.h">
-      <Filter>thirdparty\rapidjson\error</Filter>
+    <ClInclude Include="utils\utils.h">
+      <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\dtoa.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="utils\binaryio.h">
+      <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\ieee754.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="pch.h">
+      <Filter>core</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\itoa.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="math\color.h">
+      <Filter>math</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\meta.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="math\vector.h">
+      <Filter>math</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\pow10.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="utils\logger.h">
+      <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\regex.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="logic\pakfile.h">
+      <Filter>logic</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\stack.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="public\studio.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\strfunc.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="public\material.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\strtod.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="public\texture.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\swap.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="public\datatable.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\biginteger.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="public\rpak.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\clzll.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="common\decls.h">
+      <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\internal\diyfp.h">
-      <Filter>thirdparty\rapidjson\internal</Filter>
+    <ClInclude Include="common\const.h">
+      <Filter>common</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\msinttypes\inttypes.h">
-      <Filter>thirdparty\rapidjson\msinttypes</Filter>
+    <ClInclude Include="public\animrig.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\msinttypes\stdint.h">
-      <Filter>thirdparty\rapidjson\msinttypes</Filter>
+    <ClInclude Include="thirdparty\rapidjson\allocators.h">
+      <Filter>thirdparty\rapidjson</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\cursorstreamwrapper.h">
+      <Filter>thirdparty\rapidjson</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\document.h">
+      <Filter>thirdparty\rapidjson</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\encodedstream.h">
+      <Filter>thirdparty\rapidjson</Filter>
     </ClInclude>
     <ClInclude Include="thirdparty\rapidjson\encodings.h">
       <Filter>thirdparty\rapidjson</Filter>
@@ -203,62 +375,245 @@
     <ClInclude Include="thirdparty\rapidjson\writer.h">
       <Filter>thirdparty\rapidjson</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\allocators.h">
-      <Filter>thirdparty\rapidjson</Filter>
+    <ClInclude Include="thirdparty\rapidjson\error\en.h">
+      <Filter>thirdparty\rapidjson\error</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\cursorstreamwrapper.h">
-      <Filter>thirdparty\rapidjson</Filter>
+    <ClInclude Include="thirdparty\rapidjson\error\error.h">
+      <Filter>thirdparty\rapidjson\error</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\document.h">
-      <Filter>thirdparty\rapidjson</Filter>
+    <ClInclude Include="thirdparty\rapidjson\internal\biginteger.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
     </ClInclude>
-    <ClInclude Include="thirdparty\rapidjson\encodedstream.h">
-      <Filter>thirdparty\rapidjson</Filter>
+    <ClInclude Include="thirdparty\rapidjson\internal\clzll.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
     </ClInclude>
-    <ClInclude Include="utils\dxutils.h">
+    <ClInclude Include="thirdparty\rapidjson\internal\diyfp.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\dtoa.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\ieee754.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\itoa.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\meta.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\pow10.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\regex.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\stack.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\strfunc.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\strtod.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\internal\swap.h">
+      <Filter>thirdparty\rapidjson\internal</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\msinttypes\inttypes.h">
+      <Filter>thirdparty\rapidjson\msinttypes</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\rapidjson\msinttypes\stdint.h">
+      <Filter>thirdparty\rapidjson\msinttypes</Filter>
+    </ClInclude>
+    <ClInclude Include="public\starpak.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\materialflags.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\shaderset.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\shader.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="public\multishader.h">
+      <Filter>public</Filter>
+    </ClInclude>
+    <ClInclude Include="utils\strutils.h">
       <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="utils\utils.h">
+    <ClInclude Include="utils\jsonutils.h">
       <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="utils\binaryio.h">
+    <ClInclude Include="thirdparty\zstd\common\debug.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\error_private.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\fse.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\huf.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\mem.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\pool.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\portability_macros.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\threading.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\xxhash.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\zstd_deps.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\zstd_internal.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\zstd_trace.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\allocations.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\bits.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\bitstream.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\compiler.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\common\cpu.h">
+      <Filter>thirdparty\zstandard\common</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_double_fast.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_fast.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_lazy.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_ldm.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_ldm_geartab.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_opt.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstdmt_compress.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\clevels.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\hist.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_compress_internal.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_compress_literals.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_compress_sequences.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_compress_superblock.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\compress\zstd_cwksp.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\decompress\zstd_ddict.h">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\decompress\zstd_decompress_block.h">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\decompress\zstd_decompress_internal.h">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\dictBuilder\divsufsort.h">
+      <Filter>thirdparty\zstandard\dictbuilder</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\dictBuilder\cover.h">
+      <Filter>thirdparty\zstandard\dictbuilder</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\zstd.h">
+      <Filter>thirdparty\zstandard</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\zstd_errors.h">
+      <Filter>thirdparty\zstandard</Filter>
+    </ClInclude>
+    <ClInclude Include="thirdparty\zstd\zdict.h">
+      <Filter>thirdparty\zstandard</Filter>
+    </ClInclude>
+    <ClInclude Include="utils\MurmurHash3.h">
       <Filter>utils</Filter>
     </ClInclude>
-    <ClInclude Include="pch.h">
-      <Filter>core</Filter>
-    </ClInclude>
-    <ClInclude Include="math\color.h">
-      <Filter>math</Filter>
-    </ClInclude>
-    <ClInclude Include="math\vector.h">
-      <Filter>math</Filter>
-    </ClInclude>
-    <ClInclude Include="utils\logger.h">
-      <Filter>utils</Filter>
-    </ClInclude>
-    <ClInclude Include="logic\pakfile.h">
+    <ClInclude Include="logic\pakpage.h">
       <Filter>logic</Filter>
     </ClInclude>
-    <ClInclude Include="public\studio.h">
+    <ClInclude Include="logic\streamcache.h">
+      <Filter>logic</Filter>
+    </ClInclude>
+    <ClInclude Include="logic\streamfile.h">
+      <Filter>logic</Filter>
+    </ClInclude>
+    <ClInclude Include="logic\buildsettings.h">
+      <Filter>logic</Filter>
+    </ClInclude>
+    <ClInclude Include="public\settings.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\material.h">
+    <ClInclude Include="public\settings_layout.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\texture.h">
+    <ClInclude Include="math\common.h">
+      <Filter>math</Filter>
+    </ClInclude>
+    <ClInclude Include="public\texture_anim.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\table.h">
+    <ClInclude Include="thirdparty\zstd\compress\zstd_preSplit.h">
+      <Filter>thirdparty\zstandard\compress</Filter>
+    </ClInclude>
+    <ClInclude Include="public\anim_recording.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="public\rpak.h">
+    <ClInclude Include="utils\zstdutils.h">
+      <Filter>utils</Filter>
+    </ClInclude>
+    <ClInclude Include="public\material_for_aspect.h">
       <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="common\decls.h">
-      <Filter>common</Filter>
+    <ClInclude Include="public\texture_list.h">
+      <Filter>public</Filter>
     </ClInclude>
-    <ClInclude Include="common\const.h">
-      <Filter>common</Filter>
+    <ClInclude Include="public\lcd_screen_effect.h">
+      <Filter>public</Filter>
     </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="cpp.hint" />
+    <None Include="thirdparty\zstd\decompress\huf_decompress_amd64.S">
+      <Filter>thirdparty\zstandard\decompress</Filter>
+    </None>
   </ItemGroup>
 </Project>

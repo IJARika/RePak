@@ -1,63 +1,102 @@
 #pragma once
 #include "public/rpak.h"
+#include "pakpage.h"
+#include "buildsettings.h"
+#include "streamfile.h"
 
-struct _vseginfo_t
+struct PakStreamSetEntry_s
 {
-	unsigned int index = 0xFFFFFFFF;
-	unsigned int size = 0;
+	PakStreamSetEntry_s()
+	{
+		streamOffset = -1;
+		streamIndex = -1;
+	}
+
+	int64_t streamOffset : 52;
+	int64_t streamIndex : 12;
 };
 
-class CPakFile
+enum class PakAssetScope_e
 {
+	kServerOnly,
+	kClientOnly,
+	kAll,
+};
+
+class CPakFileBuilder;
+typedef void(*PakAssetAddFunc_t)(CPakFileBuilder*, const PakGuid_t, const char*, const rapidjson::Value&);
+
+struct PakAssetHandler_s
+{
+	inline bool operator==(const PakAssetHandler_s& rhs) const
+	{
+		return strcmp(rhs.assetType, assetType) == 0;
+	}
+
+	const char* assetType;
+	PakAssetScope_e assetScope;
+	PakAssetAddFunc_t func_r2;
+	PakAssetAddFunc_t func_r5;
+};
+
+struct PakAssetHasher_s
+{
+	std::size_t operator()(const PakAssetHandler_s& s) const
+	{
+		return std::hash<std::string_view>{}(s.assetType);
+	}
+};
+
+class CPakFileBuilder
+{
+	friend class CPakPage;
+
 public:
-	CPakFile(int version);
+	CPakFileBuilder(const CBuildSettings* const buildSettings, CStreamFileBuilder* const streamBuilder);
 
 	//----------------------------------------------------------------------------
 	// assets
 	//----------------------------------------------------------------------------
-	void AddAsset(rapidjson::Value& file);
-	void AddPointer(unsigned int pageIdx, unsigned int pageOffset);
-	void AddGuidDescriptor(std::vector<RPakGuidDescriptor>* guids, unsigned int idx, unsigned int offset);
-	void AddRawDataBlock(RPakRawDataBlock block);
 
-	void AddStarpakReference(const std::string& path);
-	void AddOptStarpakReference(const std::string& path);
-	StreamableDataEntry AddStarpakDataEntry(StreamableDataEntry block);
+	void AddJSONAsset(const PakAssetHandler_s& assetHandler, const char* const assetPath, const rapidjson::Value& file);
+	void AddAsset(const rapidjson::Value& file);
+
+	void AddPointer(PakPageLump_s& pointerLump, const size_t pointerOffset, const PakPageLump_s& dataLump, const size_t dataOffset);
+	void AddPointer(PakPageLump_s& pointerLump, const size_t pointerOffset);
+
+	int64_t AddStreamingFileReference(const char* const path, const bool mandatory);
+
+	PakStreamSetEntry_s AddStreamingDataEntry(const int64_t size, const uint8_t* const data, const PakStreamSet_e set);
 
 	//----------------------------------------------------------------------------
 	// inlines
 	//----------------------------------------------------------------------------
-	inline bool IsFlagSet(int flag) const { return m_Flags & flag; };
+	inline bool IsFlagSet(const int flag) const { return m_buildSettings->IsFlagSet(flag); };
 
-	inline size_t GetAssetCount() const { return m_Assets.size(); };
-	inline size_t GetStreamingAssetCount() const { return m_vStarpakDataBlocks.size(); }
+	inline size_t GetAssetCount() const { return m_assets.size(); };
+	inline uint16_t GetNumPages() const { return m_pageBuilder.GetPageCount(); };
 
-	inline uint32_t GetVersion() const { return m_Header.fileVersion; }
-	inline void SetVersion(uint32_t version) { m_Header.fileVersion = version; }
+	inline uint16_t GetVersion() const { return m_Header.fileVersion; }
+	void SetVersion(const uint16_t version);
 
-	inline void SetStarpakPathsSize(int len, int optLen)
+	inline size_t GetMaxStreamingFileHandlesPerSet() const
+	{
+		return GetVersion() == 7
+			? PAK_MAX_STREAMING_FILE_HANDLES_PER_SET_V7
+			: PAK_MAX_STREAMING_FILE_HANDLES_PER_SET_V8;
+	}
+
+	inline void SetStarpakPathsSize(uint16_t len, uint16_t optLen)
 	{
 		m_Header.starpakPathsSize = len;
 		m_Header.optStarpakPathsSize = optLen;
 	}
 
-	inline std::string GetPath() const { return m_Path; }
-	inline void SetPath(const std::string& path) { m_Path = path; }
+	inline std::string GetPath() const { return m_pakFilePath; }
+	inline void SetPath(const std::string& path) { m_pakFilePath = path; }
 
-	inline std::string GetAssetPath() const { return m_AssetPath; }
-	inline void SetAssetPath(const std::string& assetPath) { m_AssetPath = assetPath; }
-
-	inline std::string GetStarpakPath(int i) const
-	{
-		if (i >= 0 && i < m_vStarpakPaths.size())
-			return m_vStarpakPaths[i];
-		else
-			return ""; // if invalid starpak is requested, return empty string
-	};
-
-	inline std::string GetPrimaryStarpakPath() const { return m_PrimaryStarpakPath; };
-	inline size_t GetNumStarpakPaths() const { return m_vStarpakPaths.size(); }
-	inline void SetPrimaryStarpakPath(const std::string& path) { m_PrimaryStarpakPath = path; }
+	inline std::string GetAssetPath() const { return m_assetPath; }
+	inline void SetAssetPath(const std::string& assetPath) { m_assetPath = assetPath; }
 
 	inline size_t GetCompressedSize() const { return m_Header.compressedSize; }
 	inline size_t GetDecompressedSize() const { return m_Header.decompressedSize; }
@@ -68,67 +107,138 @@ public:
 	inline FILETIME GetFileTime() const { return m_Header.fileTime; }
 	inline void SetFileTime(FILETIME fileTime) { m_Header.fileTime = fileTime; }
 
-	inline void AddFlags(int flags) { m_Flags |= flags; }
-	inline void RemoveFlags(int flags) { m_Flags &= ~flags; }
-
 	//----------------------------------------------------------------------------
 	// rpak
 	//----------------------------------------------------------------------------
 	void WriteHeader(BinaryIO& io);
-	void WriteAssets(BinaryIO& io);
-	void WriteRawDataBlocks(BinaryIO& out);
+	void WriteAssetDescriptors(BinaryIO& io);
+	void WriteAssetUses(BinaryIO& io);
+	void WriteAssetDependents(BinaryIO& io);
 
-	size_t WriteStarpakPaths(BinaryIO& out, bool optional = false);
+	size_t WriteStarpakPaths(BinaryIO& out, const PakStreamSet_e set);
+	void WritePagePointers(BinaryIO& out);
 
-	void WriteVirtualSegments(BinaryIO& out);
-	void WritePages(BinaryIO& out);
-	void WritePakDescriptors(BinaryIO& out);
-	void WriteGuidDescriptors(BinaryIO& out);
-	void WriteFileRelations(BinaryIO& out);
+	void GenerateInternalDependencies();
+	void GenerateAssetDependents();
+	void GenerateAssetUses();
 
-	//----------------------------------------------------------------------------
-	// starpak
-	//----------------------------------------------------------------------------
-	void WriteStarpakDataBlocks(BinaryIO& io);
-	void WriteStarpakSortsTable(BinaryIO& io);
+	PakPageLump_s CreatePageLump(const size_t size, const int flags, const int alignment, void* const buf = nullptr);
+	PakAsset_t* GetAssetByGuid(const PakGuid_t guid, size_t* const idx = nullptr, const bool silent = false);
 
-	void FreeRawDataBlocks();
-	void FreeStarpakDataBlocks();
+	FORCEINLINE PakAsset_t& BeginAsset(const PakGuid_t assetGuid, const char* const assetPath)
+	{
+		// Only one asset can be processed at a time! This only asserts when
+		// another asset is being created while we are still working on one,
+		// or when 'FinishAsset()' wasn't called after everything was done.
+		assert(!m_processingAsset);
 
-	// purpose: populates m_vFileRelations vector with combined asset relation data
-	void GenerateFileRelations();
-	void GenerateGuidData();
+		size_t assetIdx = SIZE_MAX;
+		const PakAsset_t* const match = GetAssetByGuid(assetGuid, &assetIdx, true);
 
-	_vseginfo_t CreateNewSegment(uint32_t size, uint32_t flags, uint32_t alignment, uint32_t vsegAlignment = -1);
-	RPakAssetEntry* GetAssetByGuid(uint64_t guid, uint32_t* idx = nullptr);
+		if (match) // Asset was already added or GUID is colliding.
+		{
+			if (match->name.compare(assetPath) == 0)
+			{
+				Error("Asset \"%s\" was already added at index #%zu!\n",
+					assetPath, assetIdx);
+			}
+			else // Collision (could be non-unique GUID override or an actual collision).
+			{
+				Error("Asset \"%s\" has GUID %llX which collides with asset \"%s\" at index #%zu!\n",
+					assetPath, assetGuid, match->name.c_str(), assetIdx);
+			}
+		}
 
+		m_processingAsset = true;
+		PakAsset_t& asset = m_assets.emplace_back();
 
-	void BuildFromMap(const string& mapPath);
+		asset.guid = assetGuid;
+		asset.name = assetPath;
+
+		return asset;
+	}
+
+	FORCEINLINE void FinishAsset()
+	{
+		PakAsset_t& asset = m_assets.back();
+		asset.pageEnd = GetNumPages();
+
+		m_processingAsset = false;
+	};
+
+	void BuildFromMap(const js::Document& doc);
 
 private:
-	RPakVirtualSegment GetMatchingSegment(uint32_t flags, uint32_t alignment, uint32_t* segidx);
+	const CBuildSettings* m_buildSettings;
+	CStreamFileBuilder* m_streamBuilder;
 
-	// next available starpak data offset
-	uint64_t m_NextStarpakOffset = 0x1000;
-	int m_Flags = 0;
+	bool m_processingAsset = false;
 
-	RPakFileHeader m_Header;
+	PakHdr_t m_Header;
 
-	std::string m_Path;
-	std::string m_AssetPath;
-	std::string m_PrimaryStarpakPath;
+	std::string m_pakFilePath;
+	std::string m_assetPath;
 
-	std::vector<RPakAssetEntry> m_Assets;
+	std::vector<PakAsset_t> m_assets;
+	std::vector<PagePtr_t> m_pagePointers;
 
-	std::vector<std::string> m_vStarpakPaths;
-	std::vector<std::string> m_vOptStarpakPaths;
+	CPakPageBuilder m_pageBuilder;
 
-	std::vector<RPakVirtualSegment> m_vVirtualSegments;
-	std::vector<RPakPageInfo> m_vPages;
-	std::vector<RPakDescriptor> m_vPakDescriptors;
-	std::vector<RPakGuidDescriptor> m_vGuidDescriptors;
-	std::vector<uint32_t> m_vFileRelations;
-
-	std::vector<RPakRawDataBlock> m_vRawDataBlocks;
-	std::vector<StreamableDataEntry> m_vStarpakDataBlocks;
+	std::vector<std::string> m_mandatoryStreamFilePaths;
+	std::vector<std::string> m_optionalStreamFilePaths;
 };
+
+// if the asset already existed, the function will return true.
+inline bool Pak_RegisterGuidRefAtOffset(const PakGuid_t guid, const size_t offset, 
+	PakPageLump_s& chunk, PakAsset_t& asset)
+{
+	// NULL guids should never be added. we check it here because otherwise we
+	// have to do a check at call site, and if we miss one we will end up with
+	// a hard to track bug. so always call this function, even if your guid
+	// might be NULL.
+	if (guid == 0)
+		return false;
+
+	asset.AddGuid(chunk.GetPointer(offset), guid);
+	return true;
+}
+
+// gets the pak file header size based on pak version
+inline size_t Pak_GetHeaderSize(const uint16_t version)
+{
+	switch (version)
+	{
+		// todo(amos): we probably should import headers for both
+		// versions and do a sizeof here.
+	case 7: return 0x58;
+	case 8: return 0x80;
+	default: assert(0); return 0;
+	};
+}
+
+static inline bool Pak_IsVersionSupported(const int version)
+{
+	switch (version)
+	{
+	case 7:
+	case 8:
+		return true;
+	default:
+		return false;
+	}
+}
+
+inline const char* Pak_EncodeAlgorithmToString(const uint16_t flags)
+{
+	if (flags & PAK_HEADER_FLAGS_RTECH_ENCODED)
+		return "RTech";
+	if (flags & PAK_HEADER_FLAGS_OODLE_ENCODED)
+		return "Oodle";
+	if (flags & PAK_HEADER_FLAGS_ZSTD_ENCODED)
+		return "ZStd";
+
+	return "an unknown algorithm";
+}
+
+extern size_t Pak_EncodeStreamAndSwap(BinaryIO& io, const int compressLevel, const int workerCount, const uint16_t pakVersion, const char* const pakPath);
+extern size_t Pak_DecodeStreamAndSwap(BinaryIO& io, const uint16_t pakVersion, const char* const pakPath);

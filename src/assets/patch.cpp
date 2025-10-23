@@ -2,75 +2,67 @@
 #include "assets.h"
 
 // only tested for apex, should be identical on tf2
-void Assets::AddPatchAsset(CPakFile* pak, std::vector<RPakAssetEntry>* assetEntries, const char* assetPath, rapidjson::Value& mapEntry)
+void Assets::AddPatchAsset(CPakFileBuilder* const pak, const PakGuid_t assetGuid, const char* assetPath, const rapidjson::Value& mapEntry)
 {
-    Debug("Adding Ptch asset '%s'\n", assetPath);
+    PakAsset_t& asset = pak->BeginAsset(assetGuid, assetPath);
 
-    PtchHeader* pHdr = new PtchHeader();
+    PakPageLump_s hdrChunk = pak->CreatePageLump(sizeof(PatchAssetHeader_t), SF_HEAD, 8);
+    PatchAssetHeader_t* const pHdr = reinterpret_cast<PatchAssetHeader_t*>(hdrChunk.data);
 
-    pHdr->patchedPakCount = mapEntry["entries"].GetArray().Size();
+    rapidjson::Value::ConstMemberIterator entryIt;
+    JSON_GetRequired(mapEntry, "entries", JSONFieldType_e::kArray, entryIt);
 
-    std::vector<PtchEntry> patchEntries{};
+    const rapidjson::Value::ConstArray entryArray = entryIt->value.GetArray();
+
+    pHdr->unknown_1 = 0xFF;
+    pHdr->patchedPakCount = (uint32_t)entryArray.Size();
+
+    std::vector<PtchEntry> patchEntries;
     uint32_t entryNamesSectionSize = 0;
 
-    for (auto& it : mapEntry["entries"].GetArray())
+    for (const rapidjson::Value& entry : entryArray)
     {
-        std::string name = it["name"].GetStdString();
-        uint8_t patchNum = it["version"].GetInt();
+        const char* const name = JSON_GetValueRequired<const char*>(entry, "name");
+        const uint8_t patchNum = (uint8_t)JSON_GetValueRequired<int>(entry, "version");
 
-        patchEntries.push_back({ name, patchNum, entryNamesSectionSize });
+        PtchEntry& patchEntry = patchEntries.emplace_back();
 
-        entryNamesSectionSize += name.length() + 1;
+        patchEntry.pakFileName = name;
+        patchEntry.highestPatchNum = patchNum;
+        patchEntry.pakFileNameOffset = entryNamesSectionSize;
+
+        entryNamesSectionSize += static_cast<uint32_t>(patchEntry.pakFileName.length() + 1);
     }
 
-    size_t dataPageSize = (sizeof(RPakPtr) * pHdr->patchedPakCount) + (sizeof(uint8_t) * pHdr->patchedPakCount) + entryNamesSectionSize;
+    const size_t dataPageSize = (sizeof(PagePtr_t) * pHdr->patchedPakCount) + (sizeof(uint8_t) * pHdr->patchedPakCount) + entryNamesSectionSize;
+    PakPageLump_s dataChunk = pak->CreatePageLump(dataPageSize, SF_CPU, 8);
 
-    // asset header
-    _vseginfo_t subhdrinfo = pak->CreateNewSegment(sizeof(PtchHeader), SF_HEAD, 8);
+    const int patchNumbersOffset = sizeof(PagePtr_t) * pHdr->patchedPakCount;
 
-    // data segment
-    _vseginfo_t dataseginfo = pak->CreateNewSegment(dataPageSize, SF_CPU, 8);
+    pak->AddPointer(hdrChunk, offsetof(PatchAssetHeader_t, pPakNames), dataChunk, 0);
+    pak->AddPointer(hdrChunk, offsetof(PatchAssetHeader_t, pPakPatchNums), dataChunk, patchNumbersOffset);
 
-    pHdr->pPakNames = { dataseginfo.index, 0 };
-    pHdr->pPakPatchNums = { dataseginfo.index, (int)sizeof(RPakPtr) * pHdr->patchedPakCount };
-
-    pak->AddPointer(subhdrinfo.index, offsetof(PtchHeader, pPakNames));
-    pak->AddPointer(subhdrinfo.index, offsetof(PtchHeader, pPakPatchNums));
-
-    char* pDataBuf = new char[dataPageSize];
-    rmem dataBuf(pDataBuf);
+    rmem dataBuf(dataChunk.data);
 
     uint32_t i = 0;
-    for (auto& it : patchEntries)
+    for (const PtchEntry& it : patchEntries)
     {
-        uint32_t fileNameOffset = (sizeof(RPakPtr) * pHdr->patchedPakCount) + (sizeof(uint8_t) * pHdr->patchedPakCount) + it.FileNamePageOffset;
+        const int fileNameOffset = (sizeof(PagePtr_t) * pHdr->patchedPakCount) + (sizeof(uint8_t) * pHdr->patchedPakCount) + it.pakFileNameOffset;
 
         // write the ptr to the file name into the buffer
-        dataBuf.write<RPakPtr>({ dataseginfo.index, fileNameOffset }, sizeof(RPakPtr) * i);
+        dataBuf.write<PagePtr_t>(dataChunk.GetPointer(fileNameOffset), sizeof(PagePtr_t) * i);
         // write the patch number for this entry into the buffer
-        dataBuf.write<uint8_t>(it.PatchNum, pHdr->pPakPatchNums.offset + i);
+        dataBuf.write<uint8_t>(it.highestPatchNum, pHdr->pPakPatchNums.offset + i);
 
-        snprintf(pDataBuf + fileNameOffset, it.FileName.length() + 1, "%s", it.FileName.c_str());
+        memcpy(&dataChunk.data[fileNameOffset], it.pakFileName.c_str(), it.pakFileName.length() + 1);
 
-        pak->AddPointer(dataseginfo.index, sizeof(RPakPtr) * i);
+        pak->AddPointer(dataChunk, (sizeof(PagePtr_t) * i));
         i++;
     }
 
-    RPakRawDataBlock shdb{ subhdrinfo.index, subhdrinfo.size, (uint8_t*)pHdr };
-    pak->AddRawDataBlock(shdb);
+    // NOTE: the only Ptch asset in the game has guid 0x6fc6fa5ad8f8bc9c
+    asset.InitAsset(hdrChunk.GetPointer(), sizeof(PatchAssetHeader_t), PagePtr_t::NullPtr(), PTCH_VERSION, AssetType::PTCH);
+    asset.SetHeaderPointer(hdrChunk.data);
 
-    RPakRawDataBlock rdb{ dataseginfo.index, dataPageSize, (uint8_t*)pDataBuf };
-    pak->AddRawDataBlock(rdb);
-
-    // create and init the asset entry
-    RPakAssetEntry asset;
-
-    // hardcoded guid because it's the only Ptch asset guid
-    asset.InitAsset(0x6fc6fa5ad8f8bc9c, subhdrinfo.index, 0, subhdrinfo.size, -1, 0, -1, -1, (std::uint32_t)AssetType::PTCH);
-    asset.version = 1;
-
-    asset.pageEnd = dataseginfo.index + 1;
-    asset.unk1 = 1;
-
-    assetEntries->push_back(asset);
+    pak->FinishAsset();
 }
